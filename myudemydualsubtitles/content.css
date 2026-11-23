@@ -1,0 +1,28 @@
+/* One box avoids the browser's staircase-shaped per-line cue backgrounds. */
+.myuds-subtitle-overlay {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  box-sizing: border-box;
+  display: block;
+  width: max-content;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 72%);
+  color: #fff;
+  font-family: Arial, "Microsoft YaHei", sans-serif;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  pointer-events: none;
+}
+.myuds-subtitle-overlay[hidden] { display: none; }
+
+/* Native-only fullscreen and picture-in-picture cannot show DOM overlays. */
+video::cue(.myuds-local-cue) {
+  font-size: var(--myuds-font-size, 24px);
+  line-height: 1.25;
+}

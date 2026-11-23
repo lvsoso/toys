@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Udemy 本地字幕</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="subtitles.js" defer></script>
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header><span class="eyebrow">MY UDEMY SUBTITLES</span><h1>按自己的节奏，读懂课程。</h1></header>
+  <p id="lesson">正在读取当前课时…</p>
+  <fieldset id="controls" disabled>
+    <section id="subtitle_display">
+      <h2>字幕显示</h2>
+      <label for="font_size">字号 <output id="font_size_value" for="font_size">24px</output></label>
+      <input id="font_size" type="range" min="18" max="48" step="1" value="24">
+      <label for="subtitle_position">上下位置 <output id="subtitle_position_value" for="subtitle_position">85%</output></label>
+      <input id="subtitle_position" type="range" min="10" max="100" step="1" value="85">
+      <div class="range_ends"><span>靠上</span><span>靠下</span></div>
+      <div class="row style_actions"><span class="hint">即时生效 · 所有课时共用</span><button id="reset_style" type="button">恢复默认</button></div>
+      <p id="style_status" role="status" aria-live="polite"></p>
+    </section>
+    <section>
+      <h2>01 · 下载原字幕</h2>
+      <label for="language">字幕语言</label>
+      <div class="row"><select id="language"><option value="">尚未读取</option></select><button id="refresh" type="button">重新读取</button></div>
+      <button id="download" type="button" disabled>下载 SRT</button>
+      <p class="hint" id="caption_note">读取当前课时的可用字幕。</p>
+    </section>
+    <section>
+      <h2>02 · 使用 Codex 翻译</h2>
+      <button id="translate" type="button" disabled>翻译为中文并显示双语字幕</button>
+      <p class="hint">GPT-6 Luna · 分批翻译 · 已完成部分先显示。字幕将发送至 Codex 配置的模型服务。</p>
+      <p id="translation_progress" role="status" aria-live="polite">尚未提交翻译任务。</p>
+      <button id="retry_translation" type="button" hidden>重试未完成部分</button>
+      <button id="check_translation" type="button" hidden>查询任务状态</button>
+      <details><summary>本地后端启动方式</summary><p class="hint">在项目目录运行（先安装后端依赖）：</p><code id="backend_command"></code></details>
+    </section>
+    <section>
+      <h2>03 · 或者导入翻译好的字幕</h2>
+      <label for="subtitle_file">选择 UTF-8 编码的 SRT / VTT（最多 2 MiB）</label>
+      <input id="subtitle_file" type="file" accept=".srt,.vtt">
+      <p class="hint">保留原时间轴。纯译文或双语均可；导入后替换本课字幕，并在下次打开时自动加载。</p>
+      <p id="saved">本课尚未导入字幕。</p>
+      <label class="toggle"><input id="visible" type="checkbox" checked>显示本地字幕</label>
+    </section>
+  </fieldset>
+  <p id="status" role="status" aria-live="polite"></p>
+  <footer>手动导入仅在本地保存 · Codex 翻译需启动本地后端</footer>
+</body>
+</html>

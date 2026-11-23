@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "My Udemy Dual Subtitles",
+  "version": "0.4.2",
+  "description": "下载与导入字幕，或通过本地 Codex 翻译并复用双语字幕。",
+  "minimum_chrome_version": "111",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_popup": "popup.html", "default_title": "Udemy 本地字幕"},
+  "content_scripts": [
+    {
+      "matches": ["https://*.udemy.com/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://*.udemy.com/*"],
+      "js": ["subtitles.js", "content.js"],
+      "css": ["content.css"],
+      "run_at": "document_start"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+# Local code index
+/.codegraph/
+
+# macOS metadata
+.DS_Store
+._*
