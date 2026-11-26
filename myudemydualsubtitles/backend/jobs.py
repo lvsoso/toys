@@ -9,6 +9,7 @@ import logging
 import math
 from pathlib import Path
 import queue
+import re
 import threading
 import time
 
@@ -16,6 +17,7 @@ from .codex_translate import BATCH_CHARS, LOG_JOB, translate_batch
 
 
 LOGGER = logging.getLogger(__name__)
+SENTENCE_END = re.compile(r"[.!?…。！？][\"'”’)\]]*\s*$")
 
 
 def validate_payload(payload):
@@ -245,6 +247,12 @@ class TranslationJobs:
             ):
                 size += len(job["cues"][end]["text"])
                 end += 1
+            if end < len(job["cues"]):
+                for cut in range(end, start, -1):
+                    if SENTENCE_END.search(job["cues"][cut - 1]["text"]):
+                        end = cut
+                        break
+            size = sum(len(job["cues"][i]["text"]) for i in range(start, end))
             batch = [
                 {"id": index, "text": job["cues"][index]["text"]}
                 for index in range(start, end)

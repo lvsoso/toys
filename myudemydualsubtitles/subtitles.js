@@ -49,7 +49,7 @@ const SubtitleTools = (() => {
       const end = parse_time(match[2]);
       if (end <= start) throw new Error(`第 ${cues.length + 1} 条字幕结束时间必须晚于开始时间。`);
       const cue_text = plain_text(lines.slice(time_index + 1).join("\n"));
-      if (!cue_text.trim()) throw new Error(`第 ${cues.length + 1} 条字幕没有文本。`);
+      if (!cue_text.trim()) continue;
       cues.push({start, end, text: cue_text});
     }
     if (!cues.length) throw new Error("未找到字幕内容。");

@@ -28,6 +28,11 @@ test("invalid files fail without a partially imported track", () => {
   assert.throws(() => parse_subtitles("x".repeat(max_bytes + 1)));
 });
 
+test("blank cues are skipped", () => {
+  const cues = parse_subtitles("1\n00:00:01,000 --> 00:00:02,000\n\n\n2\n00:00:03,000 --> 00:00:04,000\nkept");
+  assert.deepEqual(cues.map((cue) => cue.text), ["kept"]);
+});
+
 test("SRT export does not wrap at 24 hours and pads fractional times", () => {
   const srt = to_srt([{start: 90001.005, end: 90002.05, text: "long"}]);
   assert.match(srt, /25:00:01,005 --> 25:00:02,050/);

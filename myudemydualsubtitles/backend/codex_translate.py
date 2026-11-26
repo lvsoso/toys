@@ -21,7 +21,7 @@ import tomllib
 MODEL = "gpt-6-luna"
 EFFORT = "low"
 PROMPT_VERSION = 1
-BATCH_CHARS = 6000
+BATCH_CHARS = 2000
 BATCH_TIMEOUT = 180
 _active_process = None
 LOGGER = logging.getLogger(__name__)
@@ -79,8 +79,15 @@ def translation_policy():
     }
 
 
-def validate_result(result, expected_ids):
-    """Require exactly one nonempty translation per requested ID."""
+def validate_result(result, expected_ids, texts=None):
+    """Require exactly one nonempty translation per requested ID.
+
+    Args:
+        result: Parsed model output.
+        expected_ids: Cue IDs the batch must return, in order.
+        texts: Optional {id: source text}; when given, empty translations log
+            the neighboring source cues to help locate the problem.
+    """
     items = result.get("translations") if isinstance(result, dict) else None
     actual = len(items) if isinstance(items, list) else None
     ids = [item["id"] for item in (items if isinstance(items, list) else [])
@@ -91,19 +98,52 @@ def validate_result(result, expected_ids):
     duplicates = sorted(
         cue_id for cue_id, count in counts.items() if count > 1
     )
-    if actual != len(expected_ids) or missing or unexpected or duplicates:
+    empty_ids = []
+    too_long_ids = []
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict) or type(item.get("id")) is not int:
+            continue
+        text = item.get("text")
+        if not isinstance(text, str) or not text.strip():
+            empty_ids.append(item["id"])
+        elif len(text) > 12000:
+            too_long_ids.append(item["id"])
+    if (
+        actual != len(expected_ids) or missing or unexpected or duplicates
+        or empty_ids or too_long_ids
+    ):
         LOGGER.warning(
             "translation_result_invalid job=%s expected=%d actual=%s "
             "items_type=%s missing_count=%d missing_ids=%s "
-            "duplicate_ids=%s unexpected_ids=%s",
+            "duplicate_ids=%s unexpected_ids=%s "
+            "empty_ids=%s too_long_ids=%s",
             LOG_JOB.get(), len(expected_ids), actual, type(items).__name__,
             len(missing), missing[:10], duplicates[:10], unexpected[:10],
+            empty_ids[:10], too_long_ids[:10],
         )
+    if texts:
+        for cue_id in empty_ids[:3]:
+            context = [(i, texts[i]) for i in range(cue_id - 2, cue_id + 3)
+                       if i in texts]
+            LOGGER.warning(
+                "translation_empty_context job=%s empty_id=%d context=%r",
+                LOG_JOB.get(), cue_id, context,
+            )
     if not isinstance(items, list) or len(items) != len(expected_ids):
         received = f"{actual} 条" if actual is not None else "非数组"
         raise ValueError(
             f"模型返回条数不完整（预期 {len(expected_ids)} 条，实际 "
             f"{received}），已完成批次保留，请重试。"
+        )
+    if empty_ids:
+        raise ValueError(
+            f"模型返回 {len(empty_ids)} 条空译文（ID {empty_ids[:10]}），"
+            "已完成批次保留，请重试。"
+        )
+    if too_long_ids:
+        raise ValueError(
+            f"模型返回 {len(too_long_ids)} 条译文过长（ID "
+            f"{too_long_ids[:10]}），已完成批次保留，请重试。"
         )
     translations = {}
     for item in items:
@@ -289,4 +329,8 @@ def translate_batch(batch, context, source_language, policy):
             result = json.loads(output_path.read_text(encoding="utf-8"))
         except (UnicodeError, json.JSONDecodeError):
             raise ValueError("Codex 未返回有效 JSON，请重试。") from None
-        return validate_result(result, [item["id"] for item in batch])
+        return validate_result(
+            result,
+            [item["id"] for item in batch],
+            texts={item["id"]: item["text"] for item in batch},
+        )

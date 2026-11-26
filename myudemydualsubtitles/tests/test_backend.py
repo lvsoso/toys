@@ -124,8 +124,8 @@ class BackendTests(unittest.TestCase):
             return ["翻译" for item in batch]
 
         self.jobs.translator = translator
-        data = payload("x" * 4000)
-        data["cues"].append({"start": 4, "end": 5, "text": "y" * 4000})
+        data = payload("x" * 1500)
+        data["cues"].append({"start": 4, "end": 5, "text": "y" * 1500})
         first = self.jobs.submit(data)
         self.jobs.pending.join()
         self.assertEqual(self.jobs.status(first["id"])["done"], 1)
@@ -212,6 +212,61 @@ class BackendTests(unittest.TestCase):
             ),
             ["一", "二"],
         )
+
+    def test_batch_ends_at_sentence_boundary(self):
+        """Cut at the last sentence end inside the budget, else hard cut."""
+        def run(texts):
+            self.calls.clear()
+            cues = [{"start": i, "end": i + 1, "text": t}
+                    for i, t in enumerate(texts)]
+            job = self.jobs.submit({"source_language": "en", "cues": cues})
+            self.jobs.pending.join()
+            return [[item["id"] for item in batch] for batch in self.calls]
+
+        part = "a" * 600
+        sentence = "b" * 599 + "."
+        batches = run([part, sentence, part, part, part, part, sentence])
+        self.assertEqual(batches[0], [0, 1])
+        self.assertEqual(batches[1], [2, 3, 4])
+        self.assertEqual(batches[2], [5, 6])
+        batches = run([part + str(i) for i in range(8)])
+        self.assertEqual(batches[0], [0, 1, 2])
+
+    def test_empty_translation_reports_ids_without_text(self):
+        """Name blank-translation IDs in error and log, never the text."""
+        result = {"translations": [
+            {"id": 0, "text": "PRIVATE_SUBTITLE"},
+            {"id": 1, "text": "  "},
+        ]}
+        with self.assertLogs(
+            "backend.codex_translate", level="WARNING",
+        ) as logs:
+            with self.assertRaisesRegex(ValueError, r"1 条空译文.*\[1\]"):
+                validate_result(result, [0, 1])
+        logged = "\n".join(logs.output)
+        self.assertIn("empty_ids=[1]", logged)
+        self.assertNotIn("PRIVATE_SUBTITLE", logged)
+        self.assertNotIn("translation_empty_context", logged)
+
+    def test_empty_translation_logs_neighbor_source_with_texts(self):
+        """Log only IDs within two of the empty one, as a single line."""
+        texts = {i: f"SRC{i}\nline" for i in range(8)}
+        result = {"translations": [
+            {"id": i, "text": "" if i == 4 else "ok"} for i in range(8)
+        ]}
+        with self.assertLogs(
+            "backend.codex_translate", level="WARNING",
+        ) as logs:
+            with self.assertRaises(ValueError):
+                validate_result(result, list(range(8)), texts=texts)
+        lines = [line for line in logs.output
+                 if "translation_empty_context" in line]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("empty_id=4", lines[0])
+        for i in range(2, 7):
+            self.assertIn(f"SRC{i}\\nline", lines[0])
+        for i in (0, 1, 7):
+            self.assertNotIn(f"SRC{i}", lines[0])
 
     def test_policy_change_invalidates_cache(self):
         """Different prompts must not silently reuse old translations."""
